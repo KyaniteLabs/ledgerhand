@@ -39,7 +39,7 @@ You can verify a payment happened on-chain. But you can't verify a *delivery* ha
 
 "Three days ago, we published a working demo of Ledgerhand — a governed-spending quorum where multiple AI agents hold one spending key. That prototype ran off-chain. Its own description said the on-chain verification leg was 'one funded testnet key away.'
 
-This submission is that leg. The repository behind the prototype was local-only — never pushed to an org remote — and was lost from the working machine before this contest window opened. That loss is documented in our repo-sync receipt dated September 20.
+This submission is that leg. The repository behind the prototype was local-only — never pushed to an org remote — and was lost from the working machine before this repository existed. That loss is documented in our repo-sync receipt dated September 20.
 
 This repo — trust_layer — is new code, built entirely October 11th through 12th. The prior demo's receipt book and the on-chain program are designed to compose: the video's governed-spending receipts are exactly what this program verifies on-chain."
 
