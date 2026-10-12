@@ -34,7 +34,7 @@ collide with an existing receipt.
 ## Quickstart (no Solana CLI needed)
 
 ```sh
-export SBF_OUT_DIR=$PWD/tests/fixtures
+./run_tests.sh
 cargo test --manifest-path tests/Cargo.toml    # issue -> verify OK -> tamper -> FAIL
 ```
 
