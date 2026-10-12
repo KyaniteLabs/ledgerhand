@@ -7,21 +7,17 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      SBF_OUT_DIR: ${{ github.workspace }}/tests/fixtures
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - name: Install pnpm
-        run: npm i -g pnpm@10
-      - name: CI gate (placeholder until PM scaffold lands)
-        run: |
-          echo "ledgerhand CI: repo + toolchain gate"
-          node --version && pnpm --version
-          test -f README.md
+      - uses: dtolnay/rust-toolchain@stable
+      - name: cargo test (issue -> verify -> tamper, SBF)
+        run: cargo test --manifest-path tests/Cargo.toml
   anchor-build-check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Anchor program builds (activates when program directory lands)
-        run: echo "anchor build gate armed"
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Anchor program compiles
+        run: cargo check -p trust_layer

@@ -1,0 +1,17 @@
+[package]
+name = "trust_layer"
+version = "0.1.0"
+description = "The Trust Layer: verifiable on-chain receipts for any payload hash."
+edition = "2021"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "trust_layer"
+
+[features]
+no-entrypoint = []
+test-sbf = []
+
+[dependencies]
+anchor-lang = { version = "0.31.2", features = ["init-if-needed"] }

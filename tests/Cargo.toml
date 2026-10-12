@@ -1,0 +1,16 @@
+[package]
+name = "trust_layer-tests"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[dependencies]
+anchor-lang = { version = "0.31.2", features = ["init-if-needed"] }
+solana-program-test = "=2.1.21"
+solana-sdk = "=2.1.21"
+solana-program = "=2.1.21"
+trust_layer = { path = "../programs/trust_layer" }
+sha2 = "0.10"
+borsh = { version = "1.5", features = ["derive"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

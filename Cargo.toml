@@ -1,0 +1,13 @@
+[workspace]
+members = ["programs/*", "tests"]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+
+[workspace.dependencies]
+anchor-lang = { version = "0.31.2", features = ["init-if-needed"] }
+
+[profile.release]
+overflow-checks = true

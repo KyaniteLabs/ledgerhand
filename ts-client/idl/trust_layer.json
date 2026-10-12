@@ -1,0 +1,96 @@
+{
+  "address": "AYqDidei67kRrTtJ4jqpG9iFJ9UfUg16ZN5mBEZj3sne",
+  "metadata": {
+    "name": "trust_layer",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "The Trust Layer: verifiable on-chain receipts for any payload hash."
+  },
+  "instructions": [
+    {
+      "name": "issueReceipt",
+      "discriminator": [45, 156, 75, 174, 129, 187, 27, 253],
+      "accounts": [
+        { "name": "receipt", "writable": true, "pda": { "seeds": [{ "kind": "const", "value": [114, 101, 99, 101, 105, 112, 116] }, { "kind": "arg", "path": "payload_hash" }] } },
+        { "name": "issuer", "writable": true, "signer": true },
+        { "name": "systemProgram", "address": "11111111111111111111111111111111" }
+      ],
+      "args": [
+        { "name": "payloadHash", "type": { "array": ["u8", 32] } },
+        { "name": "memo", "type": "string" }
+      ]
+    },
+    {
+      "name": "verifyReceipt",
+      "discriminator": [237, 57, 177, 129, 16, 206, 100, 216],
+      "accounts": [
+        { "name": "receipt", "writable": false, "pda": { "seeds": [{ "kind": "const", "value": [114, 101, 99, 101, 105, 112, 116] }, { "kind": "arg", "path": "payload_hash" }] } }
+      ],
+      "args": [
+        { "name": "payloadHash", "type": { "array": ["u8", 32] } }
+      ],
+      "returns": {
+        "defined": {
+          "name": "VerificationResult",
+          "fields": [
+            { "name": "matches", "type": "bool" },
+            { "name": "receipt", "option": "pubkey" },
+            { "name": "issuer", "option": "pubkey" },
+            { "name": "slot", "option": "u64" },
+            { "name": "voided", "type": "bool" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "voidReceipt",
+      "discriminator": [118, 175, 127, 176, 127, 236, 246, 87],
+      "accounts": [
+        { "name": "receipt", "writable": true, "pda": { "seeds": [{ "kind": "const", "value": [114, 101, 99, 101, 105, 112, 116] }, { "kind": "account", "path": "receipt.payload_hash" }] }, "close": "authority" },
+        { "name": "authority", "writable": true, "signer": true }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Receipt",
+      "discriminator": [175, 67, 248, 234, 231, 17, 76, 104],
+      "kind": "{ \"discriminator\": [175, 67, 248, 234, 231, 17, 76, 104] }"
+    }
+  ],
+  "types": [
+    {
+      "name": "Receipt",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "payloadHash", "type": { "array": ["u8", 32] } },
+          { "name": "issuer", "type": "pubkey" },
+          { "name": "slot", "type": "u64" },
+          { "name": "memo", "type": "string" },
+          { "name": "authority", "type": "pubkey" },
+          { "name": "isVoided", "type": "bool" },
+          { "name": "bump", "type": "u8" }
+        ]
+      }
+    },
+    {
+      "name": "VerificationResult",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "matches", "type": "bool" },
+          { "name": "receipt", "option": "pubkey" },
+          { "name": "issuer", "option": "pubkey" },
+          { "name": "slot", "option": "u64" },
+          { "name": "voided", "type": "bool" }
+        ]
+      }
+    },
+    {
+      "name": "ErrorCode",
+      "type": { "kind": "enum", "variants": [{ "name": "MemoTooLong" }, { "name": "NotAuthority" }] }
+    }
+  ]
+}

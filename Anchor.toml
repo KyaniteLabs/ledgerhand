@@ -1,0 +1,12 @@
+[provider]
+cluster = "devnet"
+wallet = "~/.config/solana/id.json"
+
+[programs.devnet]
+trust_layer = "AYqDidei67kRrTtJ4jqpG9iFJ9UfUg16ZN5mBEZj3sne"
+
+[programs.localnet]
+trust_layer = "AYqDidei67kRrTtJ4jqpG9iFJ9UfUg16ZN5mBEZj3sne"
+
+[scripts]
+test = "pnpm --dir ts-client run test"
