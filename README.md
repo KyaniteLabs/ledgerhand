@@ -52,12 +52,6 @@ The five tests:
 cd ts-client && pnpm install && pnpm demo   # devnet demo (needs funded wallet)
 ```
 
-## Status
-
-- [x] P1 core program + green cargo test (2026-10-12, gate G1)
-- [ ] P2 devnet deploy + live receipt TX
-- Licence: MIT.
-
 ## Composability
 
 The Trust Layer is a **primitive, not a platform.** Receipts compose upward:
@@ -71,7 +65,11 @@ Any Solana program can issue or consume receipts without permission — PDAs key
 
 ## Disclosure
 
-**No pre-existing code used.** This project was built entirely in-window (October 11–12, 2026) for the Colosseum CWF contest. The repository was initialized from zero on October 11, 2026 at 22:11 PT (first commit `015130e`). All program code, tests, and documentation were authored in-window.
+Prior in-window work exists and is disclosed here in full:
+
+- **Prior public demo, 2026-10-09:** ["Ledgerhand — governed spending for agent fleets (demo)"](https://www.youtube.com/watch?v=TdNA-H70FD8) — a working prototype of a quorum ledger: a checkable receipts book, chain-verified facts, quorum voting with signed ballots, and an honest refusal to anchor on-chain without the executive key. It was recorded three days before this repository existed.
+- **The prototype's repository was local-only and never pushed to an org remote** — the repo-sync receipt of 2026-09-20 records `ledgerhand [main]: NOT-BACKED-UP: no org remote configured — canonical missing`. It was lost from the working machine before 2026-10-11; searches of this machine, the org Forgejo, and the public GitHub org found no surviving copy.
+- **This repository is new code, built in-window** (2026-10-11–12; first commit `015130e`, 22:11 PT). It is the on-chain receipt leg the prior demo described as "one funded testnet key away." No source files from the prototype were carried into it — every commit in this history is in-window and verifiable above.
 
 ## Status
 
@@ -79,4 +77,4 @@ Any Solana program can issue or consume receipts without permission — PDAs key
 - [x] P2 local validator run + real TX signature + 5/5 tests green (gate G2)
 - [ ] P2b devnet deploy (blocked: `solana program deploy` — SBPF feature-set mismatch on this validator; disclosed in DEPLOY-LIMITATION.md)
 - [ ] P3 docs complete (this file + business plan)
-- Licence: MIT
+- Licence: Apache-2.0 (see LICENSE; Security ruling on file)
