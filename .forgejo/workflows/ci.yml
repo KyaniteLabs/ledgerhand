@@ -1,0 +1,27 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install pnpm
+        run: npm i -g pnpm@10
+      - name: CI gate (placeholder until PM scaffold lands)
+        run: |
+          echo "ledgerhand CI: repo + toolchain gate"
+          node --version && pnpm --version
+          test -f README.md
+  anchor-build-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Anchor program builds (activates when program directory lands)
+        run: echo "anchor build gate armed"
