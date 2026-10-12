@@ -7,3 +7,8 @@ ts-client/idl/*.localnet.json
 # keep the SBF test fixture: it is the exact artifact tests run against
 # and the one deployed to devnet
 !tests/fixtures/*.so
+
+# local test validator ledger (generated; never commit)
+test-ledger/
+*.rpc
+genesis.tar.bz2
