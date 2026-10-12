@@ -57,3 +57,26 @@ cd ts-client && pnpm install && pnpm demo   # devnet demo (needs funded wallet)
 - [x] P1 core program + green cargo test (2026-10-12, gate G1)
 - [ ] P2 devnet deploy + live receipt TX
 - Licence: MIT.
+
+## Composability
+
+The Trust Layer is a **primitive, not a platform.** Receipts compose upward:
+
+- **Marketplace delivery proof** — a seller issues a receipt for a delivered artifact; the buyer verifies with one command. No platform trust required.
+- **Conditional escrow** — an escrow program consumes a verified receipt as the release condition. The receipt is the proof; escrow is the consumer.
+- **Oracle attestation** — an oracle issues receipts for observed events (price, vote, milestone). Downstream programs verify without trusting the oracle's interface.
+- **Compliance trail** — every receipt is a tamper-evident audit entry. Verify any historical claim against its exact payload.
+
+Any Solana program can issue or consume receipts without permission — PDAs keyed by payload hash mean the account address is itself a commitment to the exact content.
+
+## Disclosure
+
+**No pre-existing code used.** This project was built entirely in-window (October 11–12, 2026) for the Colosseum CWF contest. The repository was initialized from zero on October 11, 2026 at 22:11 PT (first commit `015130e`). All program code, tests, and documentation were authored in-window.
+
+## Status
+
+- [x] P1 core program + green cargo test (2026-10-12, gate G1)
+- [x] P2 local validator run + real TX signature + 5/5 tests green (gate G2)
+- [ ] P2b devnet deploy (blocked: `solana program deploy` — SBPF feature-set mismatch on this validator; disclosed in DEPLOY-LIMITATION.md)
+- [ ] P3 docs complete (this file + business plan)
+- Licence: MIT
