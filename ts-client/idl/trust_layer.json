@@ -8,46 +8,187 @@
   },
   "instructions": [
     {
-      "name": "issueReceipt",
-      "discriminator": [45, 156, 75, 174, 129, 187, 27, 253],
+      "name": "issue_receipt",
+      "docs": [
+        "Mint a receipt for `payload_hash`. The signer is the issuer.",
+        "Fails if the hash is not exactly 32 bytes or the receipt already exists."
+      ],
+      "discriminator": [
+        128,
+        231,
+        32,
+        119,
+        210,
+        139,
+        80,
+        68
+      ],
       "accounts": [
-        { "name": "receipt", "writable": true, "pda": { "seeds": [{ "kind": "const", "value": [114, 101, 99, 101, 105, 112, 116] }, { "kind": "arg", "path": "payload_hash" }] } },
-        { "name": "issuer", "writable": true, "signer": true },
-        { "name": "systemProgram", "address": "11111111111111111111111111111111" }
+        {
+          "name": "receipt",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  99,
+                  101,
+                  105,
+                  112,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "payload_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "issuer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
       ],
       "args": [
-        { "name": "payloadHash", "type": { "array": ["u8", 32] } },
-        { "name": "memo", "type": "string" }
+        {
+          "name": "payload_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "memo",
+          "type": "string"
+        }
       ]
     },
     {
-      "name": "verifyReceipt",
-      "discriminator": [237, 57, 177, 129, 16, 206, 100, 216],
+      "name": "verify_receipt",
+      "docs": [
+        "Verify a payload hash against the chain. Returns issuer, slot, and",
+        "whether the hash matches a live receipt. Never fails on mismatch —",
+        "it reports `matches: false` so clients get a structured verdict."
+      ],
+      "discriminator": [
+        202,
+        144,
+        21,
+        149,
+        181,
+        189,
+        23,
+        170
+      ],
       "accounts": [
-        { "name": "receipt", "writable": false, "pda": { "seeds": [{ "kind": "const", "value": [114, 101, 99, 101, 105, 112, 116] }, { "kind": "arg", "path": "payload_hash" }] } }
+        {
+          "name": "receipt",
+          "docs": [
+            "Checked against the queried hash; if the client derives the PDA with",
+            "the *tampered* hash, the derived address differs and the constraint",
+            "fails loudly (account-not-found / constraint) — tamper detected."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  99,
+                  101,
+                  105,
+                  112,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "payload_hash"
+              }
+            ]
+          }
+        }
       ],
       "args": [
-        { "name": "payloadHash", "type": { "array": ["u8", 32] } }
+        {
+          "name": "payload_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
       ],
       "returns": {
         "defined": {
-          "name": "VerificationResult",
-          "fields": [
-            { "name": "matches", "type": "bool" },
-            { "name": "receipt", "option": "pubkey" },
-            { "name": "issuer", "option": "pubkey" },
-            { "name": "slot", "option": "u64" },
-            { "name": "voided", "type": "bool" }
-          ]
+          "name": "VerificationResult"
         }
       }
     },
     {
-      "name": "voidReceipt",
-      "discriminator": [118, 175, 127, 176, 127, 236, 246, 87],
+      "name": "void_receipt",
+      "docs": [
+        "Void (revoke) a receipt. Only the authority (issuer) may do this.",
+        "The receipt account is kept and marked, never closed: revocation has",
+        "to stay durable. A closed PDA would be re-initialisable, so any signer",
+        "could re-issue the same payload hash right after a revoke."
+      ],
+      "discriminator": [
+        114,
+        18,
+        140,
+        119,
+        187,
+        37,
+        57,
+        161
+      ],
       "accounts": [
-        { "name": "receipt", "writable": true, "pda": { "seeds": [{ "kind": "const", "value": [114, 101, 99, 101, 105, 112, 116] }, { "kind": "account", "path": "receipt.payload_hash" }] }, "close": "authority" },
-        { "name": "authority", "writable": true, "signer": true }
+        {
+          "name": "receipt",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  99,
+                  101,
+                  105,
+                  112,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "receipt.payload_hash",
+                "account": "Receipt"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "receipt"
+          ]
+        }
       ],
       "args": []
     }
@@ -55,23 +196,92 @@
   "accounts": [
     {
       "name": "Receipt",
-      "discriminator": [175, 67, 248, 234, 231, 17, 76, 104],
-      "kind": "{ \"discriminator\": [175, 67, 248, 234, 231, 17, 76, 104] }"
+      "discriminator": [
+        39,
+        154,
+        73,
+        106,
+        80,
+        102,
+        145,
+        153
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "MemoTooLong",
+      "msg": "Memo exceeds 64 bytes"
+    },
+    {
+      "code": 6001,
+      "name": "NotAuthority",
+      "msg": "Signer is not the receipt authority"
     }
   ],
   "types": [
     {
       "name": "Receipt",
+      "docs": [
+        "One receipt per payload hash. The PDA seeds [\"receipt\", payload_hash]",
+        "make the account address itself a commitment to the exact 32-byte hash,",
+        "so a tampered payload hashes to a different address and cannot collide."
+      ],
       "type": {
         "kind": "struct",
         "fields": [
-          { "name": "payloadHash", "type": { "array": ["u8", 32] } },
-          { "name": "issuer", "type": "pubkey" },
-          { "name": "slot", "type": "u64" },
-          { "name": "memo", "type": "string" },
-          { "name": "authority", "type": "pubkey" },
-          { "name": "isVoided", "type": "bool" },
-          { "name": "bump", "type": "u8" }
+          {
+            "name": "payload_hash",
+            "docs": [
+              "The 32-byte hash of the payload that was issued."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "issuer",
+            "docs": [
+              "The issuer: the signer who minted this receipt."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "slot",
+            "docs": [
+              "The slot at which the receipt was issued."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "memo",
+            "docs": [
+              "Optional free-form note supplied at issue time (max 64 bytes)."
+            ],
+            "type": "string"
+          },
+          {
+            "name": "authority",
+            "docs": [
+              "Authority allowed to update/void (the issuer at mint time)."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "is_voided",
+            "docs": [
+              "True if the receipt has been voided by its authority."
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
         ]
       }
     },
@@ -80,17 +290,50 @@
       "type": {
         "kind": "struct",
         "fields": [
-          { "name": "matches", "type": "bool" },
-          { "name": "receipt", "option": "pubkey" },
-          { "name": "issuer", "option": "pubkey" },
-          { "name": "slot", "option": "u64" },
-          { "name": "voided", "type": "bool" }
+          {
+            "name": "matches",
+            "docs": [
+              "True when a live (non-voided) receipt exists and its stored",
+              "payload hash equals the queried hash."
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "receipt",
+            "docs": [
+              "The receipt account key, when found."
+            ],
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "issuer",
+            "docs": [
+              "The issuer recorded on the receipt, when found."
+            ],
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "slot",
+            "docs": [
+              "The slot the receipt was issued in, when found."
+            ],
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "voided",
+            "docs": [
+              "True when a receipt exists but was voided."
+            ],
+            "type": "bool"
+          }
         ]
       }
-    },
-    {
-      "name": "ErrorCode",
-      "type": { "kind": "enum", "variants": [{ "name": "MemoTooLong" }, { "name": "NotAuthority" }] }
     }
   ]
 }

@@ -1,7 +1,8 @@
 //! Integration tests for the trust_layer program using solana-program-test.
 //! Proves the core loop: issue -> verify OK -> tamper -> verify FAIL,
 //! plus negative cases (unknown hash, double-issue, non-authority void,
-//! authority void happy path).
+//! authority void happy path) and durable revocation (a voided receipt
+//! reports `voided: true` and its payload hash can never be re-issued).
 //!
 //! Instructions are encoded the same way a real client does: 8-byte Anchor
 //! sighash discriminator + borsh-serialized args.
@@ -267,7 +268,8 @@ async fn non_authority_cannot_void() {
     assert!(err.is_err(), "non-authority void must be rejected");
 }
 
-/// Voiding by the real authority works and closes the account.
+/// Voiding by the real authority marks the receipt (the account is kept, not
+/// closed) and the public verify verdict reports the documented voided state.
 #[tokio::test]
 async fn authority_can_void() {
     let mut ctx = setup().await;
@@ -294,6 +296,106 @@ async fn authority_can_void() {
     };
     let tx = Transaction::new_signed_with_payer(&[ix], Some(&issuer.pubkey()), &[&issuer], ctx.last_blockhash);
     ctx.banks_client.process_transaction(tx).await.expect("authority void ok");
-    let acc = ctx.banks_client.get_account(pda).await.unwrap();
-    assert!(acc.is_none(), "voided receipt account must be closed");
+
+    // Marked, not closed: the account that carries the flag must survive.
+    let acc = ctx
+        .banks_client
+        .get_account(pda)
+        .await
+        .unwrap()
+        .expect("voided receipt account must still exist (mark, do not close)");
+    let receipt = Receipt::try_deserialize(&mut acc.data.as_slice()).unwrap();
+    assert!(receipt.is_voided, "the authority's void must set is_voided");
+    assert_eq!(receipt.issuer, issuer.pubkey(), "issuer must be unchanged");
+    assert_eq!(receipt.authority, issuer.pubkey(), "authority must be unchanged");
+
+    // The public verdict must report the documented "exists but was voided" state.
+    let vr = verify_on_chain(&mut ctx, &hash).await;
+    assert!(vr.voided, "verify_receipt must report voided=true for a voided receipt");
+    assert!(!vr.matches, "a voided receipt must not report matches=true");
+    assert_eq!(vr.issuer.expect("issuer returned"), issuer.pubkey());
+    assert_eq!(vr.receipt.expect("receipt returned"), pda);
+}
+
+/// Durable revocation: once voided, the same payload hash cannot be re-issued
+/// by the original issuer and cannot be re-issued by a different signer.
+#[tokio::test]
+async fn voided_receipt_cannot_be_reissued() {
+    let mut ctx = setup().await;
+    let issuer = Keypair::new();
+    fund(&ctx, &ctx.payer.insecure_clone(), &issuer).await;
+
+    let hash = hash_of(b"void-durability-check");
+    let tx = Transaction::new_signed_with_payer(
+        &[issue_ix(&issuer.pubkey(), &hash, "original")],
+        Some(&issuer.pubkey()),
+        &[&issuer],
+        ctx.last_blockhash,
+    );
+    ctx.banks_client.process_transaction(tx).await.expect("issue ok");
+    let (pda, _) = receipt_pda(&hash);
+
+    let void_ix = Instruction {
+        program_id: PROGRAM_ID,
+        accounts: vec![
+            AccountMeta::new(pda, false),
+            AccountMeta::new(issuer.pubkey(), true),
+        ],
+        data: encode_void(),
+    };
+    let tx = Transaction::new_signed_with_payer(
+        &[void_ix],
+        Some(&issuer.pubkey()),
+        &[&issuer],
+        ctx.last_blockhash,
+    );
+    ctx.banks_client.process_transaction(tx).await.expect("authority void ok");
+
+    // (a) the documented voided state is publicly observable
+    let vr = verify_on_chain(&mut ctx, &hash).await;
+    assert!(vr.voided, "voided receipt must verify as voided=true");
+    assert!(!vr.matches, "voided receipt must not verify as matches=true");
+
+    // (b) the original issuer cannot re-issue the voided payload hash
+    let tx = Transaction::new_signed_with_payer(
+        &[issue_ix(&issuer.pubkey(), &hash, "reissued")],
+        Some(&issuer.pubkey()),
+        &[&issuer],
+        ctx.last_blockhash,
+    );
+    let err = ctx.banks_client.process_transaction(tx).await;
+    assert!(
+        err.is_err(),
+        "re-issuing a voided payload hash must be rejected (original issuer), got {:?}",
+        err
+    );
+
+    // (b cont.) a third party cannot re-issue it either — that is the whole
+    // revocation guarantee: a closed PDA would have let ANY signer take over.
+    let attacker = Keypair::new();
+    fund(&ctx, &ctx.payer.insecure_clone(), &attacker).await;
+    let tx = Transaction::new_signed_with_payer(
+        &[issue_ix(&attacker.pubkey(), &hash, "hijacked")],
+        Some(&attacker.pubkey()),
+        &[&attacker],
+        ctx.last_blockhash,
+    );
+    let err = ctx.banks_client.process_transaction(tx).await;
+    assert!(
+        err.is_err(),
+        "a third party must not be able to re-issue a voided payload hash, got {:?}",
+        err
+    );
+
+    // The receipt is still the original issuer's, still voided: no replacement happened.
+    let acc = ctx
+        .banks_client
+        .get_account(pda)
+        .await
+        .unwrap()
+        .expect("voided receipt account must still exist");
+    let receipt = Receipt::try_deserialize(&mut acc.data.as_slice()).unwrap();
+    assert!(receipt.is_voided, "receipt must stay voided");
+    assert_eq!(receipt.issuer, issuer.pubkey(), "original issuer must be preserved");
+    assert_eq!(receipt.memo, "original", "memo must be the original one");
 }

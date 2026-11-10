@@ -15,7 +15,10 @@ A Solana (Anchor) program that turns any claim, delivery, or promise into a
    Never silently fails on mismatch: it reports a structured verdict, and a
    tampered payload hash derives a *different* PDA, so verification fails
    loudly (no account / seeds constraint).
-3. **void_receipt()** — the issuer (authority) can revoke + close a receipt.
+3. **void_receipt()** — the issuer (authority) can revoke a receipt. The
+   account is **marked** (`is_voided = true`), never closed, so revocation
+   is durable: the PDA stays initialized and the same payload hash can never
+   be re-issued by anyone. `verify_receipt` reports `voided: true` for it.
 
 Program ID: `AYqDidei67kRrTtJ4jqpG9iFJ9UfUg16ZN5mBEZj3sne` (devnet, pending deploy).
 
@@ -38,13 +41,24 @@ collide with an existing receipt.
 cargo test --manifest-path tests/Cargo.toml    # issue -> verify OK -> tamper -> FAIL
 ```
 
-The five tests:
+The six tests:
 1. `core_loop_issue_verify_tamper` — THE demo: issue → verify(matches=true,
    issuer, slot) → flip one payload byte → verify FAILS on-chain.
 2. `unknown_hash_has_no_receipt` — random hash: no account, verify fails.
 3. `double_issue_is_rejected` — same hash twice → rejected.
 4. `non_authority_cannot_void` — attacker can't revoke someone's receipt.
-5. `authority_can_void` — issuer voids + account closes.
+5. `authority_can_void` — issuer voids: the receipt is marked
+   (`is_voided = true`), the account survives, and verify reports
+   `voided: true` with `matches: false`.
+6. `voided_receipt_cannot_be_reissued` — after a void, the same payload hash
+   cannot be re-issued by the original issuer *or* by a different signer.
+
+Regenerate the committed IDL from the program after changing accounts,
+instructions or their docs (never hand-edit it):
+
+```sh
+./scripts/gen-idl.sh
+```
 
 ## TS client
 
