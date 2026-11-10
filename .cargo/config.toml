@@ -1,0 +1,7 @@
+# The integration tests run the real compiled SBF artifact
+# (tests/fixtures/trust_layer.so) through solana-program-test. Its `setup()`
+# looks the fixture up via SBF_OUT_DIR, so point cargo's environment at the
+# fixtures directory (resolved relative to this file) and the README command
+# works as written, from any subdirectory of the repo.
+[env]
+SBF_OUT_DIR = { value = "tests/fixtures", relative = true }

@@ -19,6 +19,8 @@ A Solana (Anchor) program that turns any claim, delivery, or promise into a
    account is **marked** (`is_voided = true`), never closed, so revocation
    is durable: the PDA stays initialized and the same payload hash can never
    be re-issued by anyone. `verify_receipt` reports `voided: true` for it.
+   The voided account keeps its rent-exempt lamports — that rent is the
+   price of a durable revocation record and is not refunded.
 
 Program ID: `AYqDidei67kRrTtJ4jqpG9iFJ9UfUg16ZN5mBEZj3sne` (devnet, pending deploy).
 
@@ -41,6 +43,11 @@ collide with an existing receipt.
 cargo test --manifest-path tests/Cargo.toml    # issue -> verify OK -> tamper -> FAIL
 ```
 
+`.cargo/config.toml` sets `SBF_OUT_DIR` to `tests/fixtures` for every cargo
+command in this repo, so the suite finds the committed `trust_layer.so` and the
+bare command above works from any subdirectory. `./run_tests.sh` sets the same
+variable explicitly and forwards extra arguments to cargo.
+
 The six tests:
 1. `core_loop_issue_verify_tamper` — THE demo: issue → verify(matches=true,
    issuer, slot) → flip one payload byte → verify FAILS on-chain.
@@ -59,6 +66,12 @@ instructions or their docs (never hand-edit it):
 ```sh
 ./scripts/gen-idl.sh
 ```
+
+The script sets `ANCHOR_IDL_BUILD_RESOLUTION=TRUE`, which anchor-syn requires
+at proc-macro time to emit `pda` seeds, account `address` entries and
+`relations` in the IDL (without it the IDL is silently degraded). It writes
+to a temp file and only replaces the committed IDL on success, so a failed
+run cannot leave a truncated file.
 
 ## TS client
 

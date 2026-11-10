@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # Regenerate ts-client/idl/trust_layer.json from the program source.
 #
 # The IDL is printed by the program itself: with `--features idl-build` Anchor
@@ -7,20 +7,38 @@
 # performs the same post-processing `anchor idl build` does (merge the address
 # and errors blocks, strip module paths from type names).
 #
-# Why not `anchor idl build` directly: the CLI adds
-# `RUSTFLAGS=--cfg procmacro2_semver_exempt`, which under anchor 0.31 makes this
-# crate's `#[derive(Accounts)]` expansion fail on a cold target
-# (`cannot find value payload_hash/receipt in this scope`). Running the
-# generator directly avoids that flag, so the IDL cannot drift from source.
+# Two environment details are load-bearing:
+#
+#  1. ANCHOR_IDL_BUILD_RESOLUTION=TRUE must be set *before* the proc macro
+#     expands. anchor-syn only emits IDL `pda` seeds, `address` and `relations`
+#     when this is "TRUE" at macro time (anchor-syn-0.31.x
+#     src/idl/accounts.rs, `option_env!("ANCHOR_IDL_BUILD_RESOLUTION")`).
+#     `anchor idl build` exports it; a plain shell does not. Without it the
+#     IDL is degraded — no PDA seeds and no system_program address — and Anchor
+#     TS clients can no longer derive PDAs from it. This script exports it.
+#
+#  2. `anchor idl build` also passes
+#     `RUSTFLAGS=--cfg procmacro2_semver_exempt`, which under anchor 0.31 makes
+#     this crate's `#[derive(Accounts)]` expansion fail on a cold target
+#     (`cannot find value payload_hash/receipt in this scope`). Running the
+#     generator directly avoids that flag.
+#
+# Failure safety: the new IDL is written to a temp file and moved into place
+# only after every step succeeds, so a failed run can never truncate the
+# committed IDL. stderr is left visible so the failure is diagnosable.
 #
 # Usage: ./scripts/gen-idl.sh   (writes ts-client/idl/trust_layer.json)
-set -e
+set -euo pipefail
 cd "$(dirname "$0")/.."
 
 OUT=ts-client/idl/trust_layer.json
+TMP="$(mktemp "${TMPDIR:-/tmp}/trust_layer-idl.XXXXXX")"
+trap 'rm -f "$TMP"' EXIT
+
+export ANCHOR_IDL_BUILD_RESOLUTION=TRUE
 
 cargo test -p trust_layer --features idl-build __anchor_private_print_idl \
-  -- --show-output --quiet 2>/dev/null | python3 -c '
+  -- --show-output --quiet | python3 -c '
 import json
 import re
 import sys
@@ -54,6 +72,8 @@ def strip_module_paths(node):
     return node
 
 sys.stdout.write(json.dumps(strip_module_paths(idl), indent=2, ensure_ascii=False))
-' > "$OUT"
+' > "$TMP"
 
+chmod 644 "$TMP"
+mv "$TMP" "$OUT"
 echo "wrote $OUT"
