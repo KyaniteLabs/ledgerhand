@@ -10,6 +10,9 @@
 //! Run from repo root: `cargo test --manifest-path tests/Cargo.toml`
 //! (no validator, no Solana CLI — pure cargo.)
 
+#[cfg(test)]
+mod receipt_status;
+
 use anchor_lang::AccountDeserialize;
 use borsh::BorshDeserialize;
 use sha2::{Digest, Sha256};

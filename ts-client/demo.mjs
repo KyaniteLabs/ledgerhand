@@ -60,7 +60,7 @@ async function main() {
       .accounts({ receipt: pda })
       .view();
     console.log("    result:", JSON.stringify(res, (k, v) => (typeof v === "object" && v?.type === "Buffer" ? Buffer.from(v.data).toString("hex") : v)));
-    console.log(`    matches=${res.matches} issuer=${res.issuer?.toString?.() ?? res.issuer} slot=${res.slot}`);
+    console.log(`    matches=${res.matches} voided=${res.voided} issuer=${res.issuer?.toString?.() ?? res.issuer} slot=${res.slot}`);
   } catch (e) {
     console.log(`    verify failed: ${e.message?.slice(0, 160)}`);
   }

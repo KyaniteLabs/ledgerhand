@@ -24,7 +24,96 @@ pub struct Receipt {
     pub bump: u8,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+/// The lifecycle of a receipt, named in one place.
+///
+/// ```text
+///   (no account) --issue_receipt--> Live --void_receipt--> Voided --+
+///                                                             ^      | void_receipt
+///                                                             +------+ (idempotent no-op)
+/// ```
+///
+/// "Not issued" is the absence of the `["receipt", payload_hash]` PDA, not a
+/// variant: `issue_receipt` creates the account with Anchor `init`, which
+/// refuses an address that already exists, so neither a `Live` nor a `Voided`
+/// receipt can be issued again. `Voided` is terminal: there is no move back to
+/// `Live`, and this type offers no way to express one.
+///
+/// On chain the status is stored as the `Receipt::is_voided` byte
+/// (`0` = `Live`, `1` = `Voided`), so the account layout is unchanged.
+/// All writes to that byte go through [`Receipt::issue`] and [`Receipt::void`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum ReceiptStatus {
+    /// Issued and not revoked: verification can match.
+    Live,
+    /// Revoked by its authority. Terminal.
+    Voided,
+}
+
+impl ReceiptStatus {
+    /// Every status, for exhaustive checks.
+    pub const ALL: [ReceiptStatus; 2] = [ReceiptStatus::Live, ReceiptStatus::Voided];
+
+    /// The status a freshly issued receipt starts in.
+    pub const INITIAL: ReceiptStatus = ReceiptStatus::Live;
+
+    /// Decode the persisted `is_voided` flag.
+    pub const fn from_is_voided(is_voided: bool) -> Self {
+        if is_voided {
+            ReceiptStatus::Voided
+        } else {
+            ReceiptStatus::Live
+        }
+    }
+
+    /// Encode as the persisted `is_voided` flag.
+    pub const fn is_voided(self) -> bool {
+        match self {
+            ReceiptStatus::Live => false,
+            ReceiptStatus::Voided => true,
+        }
+    }
+
+    /// The `void_receipt` transition: `Live -> Voided`, and `Voided -> Voided`
+    /// as an idempotent no-op so a retried revocation still succeeds.
+    pub const fn void(self) -> Self {
+        match self {
+            ReceiptStatus::Live | ReceiptStatus::Voided => ReceiptStatus::Voided,
+        }
+    }
+
+    /// Whether a receipt in this status can verify as a match.
+    pub const fn can_match(self) -> bool {
+        match self {
+            ReceiptStatus::Live => true,
+            ReceiptStatus::Voided => false,
+        }
+    }
+}
+
+impl Receipt {
+    /// Current lifecycle status, decoded from the stored flag.
+    pub fn status(&self) -> ReceiptStatus {
+        ReceiptStatus::from_is_voided(self.is_voided)
+    }
+
+    /// The `issue_receipt` transition: fill a freshly created account.
+    pub fn issue(&mut self, payload_hash: [u8; 32], issuer: Pubkey, slot: u64, memo: String, bump: u8) {
+        self.payload_hash = payload_hash;
+        self.issuer = issuer;
+        self.slot = slot;
+        self.memo = memo;
+        self.authority = issuer;
+        self.is_voided = ReceiptStatus::INITIAL.is_voided();
+        self.bump = bump;
+    }
+
+    /// The `void_receipt` transition. Only the status changes.
+    pub fn void(&mut self) {
+        self.is_voided = self.status().void().is_voided();
+    }
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, PartialEq, Eq)]
 pub struct VerificationResult {
     /// True when a live (non-voided) receipt exists and its stored
     /// payload hash equals the queried hash.
@@ -39,6 +128,22 @@ pub struct VerificationResult {
     pub voided: bool,
 }
 
+impl VerificationResult {
+    /// The verdict for `receipt` (stored at `receipt_key`) against a queried
+    /// hash. `matches` and `voided` are both derived from the receipt's
+    /// status here, so `matches && voided` cannot be produced.
+    pub fn for_receipt(receipt_key: Pubkey, receipt: &Receipt, payload_hash: &[u8; 32]) -> Self {
+        let status = receipt.status();
+        VerificationResult {
+            matches: status.can_match() && receipt.payload_hash == *payload_hash,
+            receipt: Some(receipt_key),
+            issuer: Some(receipt.issuer),
+            slot: Some(receipt.slot),
+            voided: status.is_voided(),
+        }
+    }
+}
+
 #[program]
 pub mod trust_layer {
     use super::*;
@@ -47,14 +152,10 @@ pub mod trust_layer {
     /// Fails if the hash is not exactly 32 bytes or the receipt already exists.
     pub fn issue_receipt(ctx: Context<IssueReceipt>, payload_hash: [u8; 32], memo: String) -> Result<()> {
         require!(memo.len() <= 64, ErrorCode::MemoTooLong);
-        let receipt = &mut ctx.accounts.receipt;
-        receipt.payload_hash = payload_hash;
-        receipt.issuer = ctx.accounts.issuer.key();
-        receipt.slot = Clock::get()?.slot;
-        receipt.memo = memo;
-        receipt.authority = ctx.accounts.issuer.key();
-        receipt.is_voided = false;
-        receipt.bump = ctx.bumps.receipt;
+        let slot = Clock::get()?.slot;
+        let issuer = ctx.accounts.issuer.key();
+        let bump = ctx.bumps.receipt;
+        ctx.accounts.receipt.issue(payload_hash, issuer, slot, memo, bump);
         Ok(())
     }
 
@@ -63,14 +164,7 @@ pub mod trust_layer {
     /// it reports `matches: false` so clients get a structured verdict.
     pub fn verify_receipt(ctx: Context<VerifyReceipt>, payload_hash: [u8; 32]) -> Result<VerificationResult> {
         let receipt = &ctx.accounts.receipt;
-        let hash_matches = receipt.payload_hash == payload_hash && !receipt.is_voided;
-        Ok(VerificationResult {
-            matches: hash_matches,
-            receipt: Some(receipt.key()),
-            issuer: Some(receipt.issuer),
-            slot: Some(receipt.slot),
-            voided: receipt.is_voided,
-        })
+        Ok(VerificationResult::for_receipt(receipt.key(), receipt, &payload_hash))
     }
 
     /// Void (revoke) a receipt. Only the authority (issuer) may do this.
@@ -78,7 +172,7 @@ pub mod trust_layer {
     /// to stay durable. A closed PDA would be re-initialisable, so any signer
     /// could re-issue the same payload hash right after a revoke.
     pub fn void_receipt(ctx: Context<VoidReceipt>) -> Result<()> {
-        ctx.accounts.receipt.is_voided = true;
+        ctx.accounts.receipt.void();
         Ok(())
     }
 }
