@@ -74,7 +74,11 @@ pub mod trust_layer {
     }
 
     /// Void (revoke) a receipt. Only the authority (issuer) may do this.
-    pub fn void_receipt(_ctx: Context<VoidReceipt>) -> Result<()> {
+    /// The receipt account is kept and marked, never closed: revocation has
+    /// to stay durable. A closed PDA would be re-initialisable, so any signer
+    /// could re-issue the same payload hash right after a revoke.
+    pub fn void_receipt(ctx: Context<VoidReceipt>) -> Result<()> {
+        ctx.accounts.receipt.is_voided = true;
         Ok(())
     }
 }
@@ -115,7 +119,6 @@ pub struct VoidReceipt<'info> {
         seeds = [b"receipt", receipt.payload_hash.as_ref()],
         bump = receipt.bump,
         has_one = authority @ ErrorCode::NotAuthority,
-        close = authority
     )]
     pub receipt: Account<'info, Receipt>,
     pub authority: Signer<'info>,
