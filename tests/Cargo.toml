@@ -14,3 +14,6 @@ trust_layer = { path = "../programs/trust_layer" }
 sha2 = "0.10"
 borsh = { version = "1.5", features = ["derive"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
+[dev-dependencies]
+proptest = "1"

@@ -60,6 +60,12 @@ The six tests:
 6. `voided_receipt_cannot_be_reissued` — after a void, the same payload hash
    cannot be re-issued by the original issuer *or* by a different signer.
 
+Host-side tests in `tests/src/receipt_status.rs` pin the receipt lifecycle
+(`ReceiptStatus`: `Live -> Voided`, `Voided` terminal) against the program's
+Rust source: the status/`is_voided` table, every transition, the verify
+verdict table, the account byte layout, and a proptest model test over random
+operation sequences. They run in the same `cargo test` command.
+
 Regenerate the committed IDL from the program after changing accounts,
 instructions or their docs (never hand-edit it):
 
