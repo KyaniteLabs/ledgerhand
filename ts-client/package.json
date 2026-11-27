@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "demo": "node demo.mjs",
-    "test": "node demo.mjs"
+    "test": "node demo.mjs",
+    "verify:idl": "node verify-idl.mjs"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.1",
