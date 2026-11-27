@@ -90,7 +90,9 @@ cd ts-client && pnpm verify:idl             # offline: committed IDL must constr
 and checks every instruction/account discriminator against
 `sha256("global:<name>")[:8]` / `sha256("account:<name>")[:8]` derived from the
 Rust handlers, plus the `VerificationResult` type and `Receipt` account codecs.
-It contacts no RPC. Run it after regenerating the IDL; CI runs it on every PR.
+It contacts no RPC. Run it after regenerating the IDL; it is not yet wired into a
+CI workflow (the factory GitHub App cannot push `.github/workflows/*`), so for now
+the local run is the gate.
 
 ## Composability
 
