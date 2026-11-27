@@ -83,7 +83,14 @@ run cannot leave a truncated file.
 
 ```sh
 cd ts-client && pnpm install && pnpm demo   # devnet demo (needs funded wallet)
+cd ts-client && pnpm verify:idl             # offline: committed IDL must construct the client
 ```
+
+`pnpm verify:idl` constructs `anchor.Program` from `ts-client/idl/trust_layer.json`
+and checks every instruction/account discriminator against
+`sha256("global:<name>")[:8]` / `sha256("account:<name>")[:8]` derived from the
+Rust handlers, plus the `VerificationResult` type and `Receipt` account codecs.
+It contacts no RPC. Run it after regenerating the IDL; CI runs it on every PR.
 
 ## Composability
 
